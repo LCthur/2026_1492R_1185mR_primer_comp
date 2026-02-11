@@ -36,11 +36,14 @@ library(phyloseq)
 library(tidyr)
 library(tibble)
 library(openxlsx)
+library(plotly)
 ```
 
 ```{r}
 #| label: utils
 #| warning: false
+#| echo: false
+
 
  quickRareCurve <- function (x, nsteps = 50, max.cores = T, nCores = 1, ...){
   require(parallel)
@@ -403,6 +406,9 @@ Let's have a look the primer pair is capturing one family or phylum that is then
 ```{r}
 #| fig-height: 12
 #| fig-width: 10
+#| echo: false
+#| warning: false
+
   physeq.1185.phylum <- tax_glom(physeq.1185, taxrank = "Phylum")
 
   physeq.1185.phylum.rel <- transform_sample_counts(
@@ -421,7 +427,7 @@ Let's have a look the primer pair is capturing one family or phylum that is then
       axis.text.x = element_text(angle = 90)
     ) 
   
-  relative_plot
+  plotly::ggplotly(relative_plot)
   
   
   physeq.1492.phylum <- tax_glom(physeq.1492, taxrank = "Phylum")
@@ -442,7 +448,7 @@ Let's have a look the primer pair is capturing one family or phylum that is then
       axis.text.x = element_text(angle = 90)
     ) 
   
-  relative_plot
+  plotly::ggplotly(relative_plot)
 ```
 Like this, it's hard to read and not very informative. But the 1185mR tax_table is dominated by one family (Aphagea_fa) which corresponds to a Eukaryote. Aside from this, the two tax tables are pretty similar. Although they are dominated by chloroplasts and mitochondria... 
 
@@ -463,6 +469,7 @@ Rules based on taxonomy assignment:
 ```{r}
 #| echo: false
 #| warning: false
+
   otu.1492.bac <- otu.1492 %>% dplyr::select(all_of(rownames(tax.bac.1492)))
   
   otu.sample.1492 <- merge(design.1492 %>% dplyr::select(Sample), otu.1492.bac, by = 0) %>% 
@@ -586,6 +593,8 @@ The rarefaction curves show a higher diversity for the 1185mR primer pair.
 ```{r}
 #| fig-height: 12
 #| fig-width: 10
+#| echo: false
+#| warning: false
 
   physeq.1185.filtered <- prune_taxa(rownames(tax.bac.1185), physeq.1185)
   physeq.1185.phylum <- tax_glom(physeq.1185.filtered, taxrank = "Phylum")
@@ -606,7 +615,7 @@ The rarefaction curves show a higher diversity for the 1185mR primer pair.
       axis.text.x = element_text(angle = 90)
     ) 
   
-  relative_plot
+  plotly::ggplotly(relative_plot)
   
   physeq.1492.filtered <- prune_taxa(rownames(tax.bac.1492), physeq.1492)
   physeq.1492.phylum <- tax_glom(physeq.1492.filtered, taxrank = "Phylum")
@@ -627,7 +636,7 @@ The rarefaction curves show a higher diversity for the 1185mR primer pair.
       axis.text.x = element_text(angle = 90)
     ) 
   
-  relative_plot
+  plotly::ggplotly(relative_plot)
 ```
 
 ## 2. Loïc 
@@ -938,6 +947,9 @@ Let's have a look the primer pair is capturing one family or phylum that is then
 ```{r}
 #| fig-height: 12
 #| fig-width: 10
+#| echo: false
+#| warning: false
+
   physeq.1185.phylum <- tax_glom(physeq.1185, taxrank = "Phylum")
 
   physeq.1185.phylum.rel <- transform_sample_counts(
@@ -956,7 +968,7 @@ Let's have a look the primer pair is capturing one family or phylum that is then
       axis.text.x = element_text(angle = 90)
     ) 
   
-  relative_plot
+  plotly::ggplotly(relative_plot)
   
   
   physeq.1492.phylum <- tax_glom(physeq.1492, taxrank = "Phylum")
@@ -977,7 +989,7 @@ Let's have a look the primer pair is capturing one family or phylum that is then
       axis.text.x = element_text(angle = 90)
     ) 
   
-  relative_plot
+  plotly::ggplotly(relative_plot)
 ```
 
 
@@ -1119,6 +1131,8 @@ The rarefaction curves show a higher absolute diversity for the 1185mR primer pa
 ```{r}
 #| fig-height: 12
 #| fig-width: 10
+#| echo: false
+#| warning: false
 
   physeq.1185.filtered <- prune_taxa(rownames(tax.bac.1185), physeq.1185)
   physeq.1185.phylum <- tax_glom(physeq.1185.filtered, taxrank = "Phylum")
@@ -1139,7 +1153,7 @@ The rarefaction curves show a higher absolute diversity for the 1185mR primer pa
       axis.text.x = element_text(angle = 90)
     ) 
   
-  relative_plot
+  plotly::ggplotly(relative_plot)
   
   physeq.1492.filtered <- prune_taxa(rownames(tax.bac.1492), physeq.1492)
   physeq.1492.phylum <- tax_glom(physeq.1492.filtered, taxrank = "Phylum")
@@ -1160,7 +1174,7 @@ The rarefaction curves show a higher absolute diversity for the 1185mR primer pa
       axis.text.x = element_text(angle = 90)
     ) 
   
-  relative_plot
+  plotly::ggplotly(relative_plot)
 ```
 
 
