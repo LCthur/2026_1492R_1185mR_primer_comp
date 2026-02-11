@@ -368,6 +368,11 @@ Unfiltered data: all OTUs are kept. Including the plant, mitochondria and plasti
      geom_col() +
      facet_wrap(~ Sample ) + 
      theme_bw() + plot_theme + theme(axis.text.x = element_blank())
+   
+  ggplot(summary.fiona, aes( x = primers, y = BAC / (BAC + PLANT), fill = primers)) +
+     geom_boxplot() +
+     geom_jitter() + 
+     theme_bw() + plot_theme
 ```
 
 
@@ -909,6 +914,11 @@ Unfiltered data: all OTUs are kept. Including the plant, mitochondria and plasti
      geom_col() +
      facet_wrap(~ Sample ) + 
      theme_bw() + plot_theme + theme(axis.text.x = element_blank())
+   
+   ggplot(summary.loic, aes( x = primers, y = BAC / (BAC + PLANT), fill = primers)) +
+     geom_boxplot() +
+     geom_jitter() + 
+     theme_bw() + plot_theme
 ```
 
 
@@ -1095,7 +1105,12 @@ Rules based on taxonomy assignment:
      geom_col() +
      facet_wrap(~ Sample ) + 
      theme_bw() + plot_theme + theme(axis.text.x = element_blank()) + ylab("Number of bacterial reads")
-```
+   
+   
+   ggplot(summary.loic, aes( x = primers, y = OTUsum, fill = primers)) + 
+     geom_boxplot() +
+     geom_jitter() + theme_bw() + plot_theme
+``` 
 
 
 ```{r}
