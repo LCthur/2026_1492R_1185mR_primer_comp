@@ -1,0 +1,1172 @@
+---
+title: "16S Primer Comp at 98%"
+date: 02-09-2026
+author: Loïc Thurre
+format:
+    html:
+      toc: true
+      toc-location: left
+
+  
+---
+
+# 16S Root bacterial profiling with PacBio + Kinnex
+This is the analysis that orginates from the following [lab book](https://wiki.biozentrum.unibas.ch/spaces/DUWPMI/pages/574286083/20251110+-+LTh+FF+-+2nd+trial+-+Protocol+16S+profiling+of+plant+roots+with+Kinnex-PacBio).
+
+**Overall goal**: develop a method that uses PacBio + Kinnex to profile the root bacterial communities. 
+
+**Specific goal**: compare two primer pairs with Kinnex adapters:
+
+1. **27F - 1492R** = 16S long-read. PacBio Kinnex documentation
+2. **27F - 1185mR** = 16S fragment, excluding plastids (Lutzoni lab). Custom Kinnex adapters
+
+
+
+I separate the analysis by SampleOwner and filtered/unfiltered data. 
+
+
+```{r}
+#| label: package import
+#| echo: false
+#| warning: false
+
+library(dplyr)
+library(ggplot2)
+library(phyloseq)
+library(tidyr)
+library(tibble)
+library(openxlsx)
+```
+
+```{r}
+#| label: utils
+#| warning: false
+
+ quickRareCurve <- function (x, nsteps = 50, max.cores = T, nCores = 1, ...){
+  require(parallel)
+  require(vegan)
+  x <- as.matrix(x)
+  if (!identical(all.equal(x, round(x)), TRUE)){stop("function accepts only integers (counts)")}
+  tot <- rowSums(x) # calculates library sizes
+  S <- specnumber(x) # calculates n species for each sample
+  if (any(S <= 0)) {
+    message("empty rows removed")
+    x <- x[S > 0, , drop = FALSE]
+    tot <- tot[S > 0]
+    S <- S[S > 0]
+  } # removes any empty rows
+  nr <- nrow(x) # number of samples
+  # parallel mclapply
+  # set number of cores
+  mc <- getOption("mc.cores", ifelse(max.cores, detectCores(), nCores))
+  message(paste("Using ", mc, " cores"))
+  out <- mclapply(seq_len(nr), mc.cores = mc, function(i) {
+    #different then in normal rarecurve function, here we calculate stepsize so that we have n steps per sample
+    stepsize <- max(as.integer(tot[i]/(nsteps)), 1)
+    n <- seq(1, tot[i], by = stepsize)
+    if (n[length(n)] != tot[i]){n <- c(n, tot[i])}
+    drop(rarefy(x[i, ], n))
+  })
+  #add names
+  names(out) <- rownames(x)
+  #long-transformation
+  protox <- mapply(FUN = function(x, y) {
+    mydf <- as.data.frame(x)
+    colnames(mydf) <- "value"
+    mydf$sample_name <- y
+    mydf$subsample <- attr(x, "Subsample")
+    mydf
+  }, x = out, y = as.list(names(out)), SIMPLIFY = FALSE)
+  out_long <- do.call(rbind, protox)
+  rownames(out_long) <- NULL  # pretty
+   
+  return(out_long)
+ }
+ 
+ plot_theme = theme(
+   axis.text = element_text(size = 12),
+   axis.title = element_text(size = 12),
+   legend.title = element_text(size = 14, face = "bold"),
+   legend.text = element_text(size = 12),
+   strip.text = element_text(size = 14)
+ )
+```
+
+# 98% Clustering
+## 0. Data import
+
+```{r}
+#| label: import data 1492R
+#| echo: false
+#| warning: false
+  
+  # DESIGN
+  design.1492 <- read.xlsx("../00_DATA/primer_list_fiona_loic.xlsx", sheet = 1) %>% 
+    filter(PrimerCombo == "27-1492") %>% 
+    select(c(Sample, PrimerComb, SampleOwner, extraction_method, host)) %>% 
+    tibble::column_to_rownames("PrimerComb")
+
+  # OTU table
+  otu.1492 <- read.table("../00_DATA/R1492_OUTPUT/bacteria/98/bacteria_COUNT98.tab")
+  rownames(otu.1492) = gsub("PB403rev1492.", "", rownames(otu.1492))
+  rownames(otu.1492) = gsub("_cutted_filt", "", rownames(otu.1492))
+  
+  otu.sample.1492 <- merge(design.1492 %>% dplyr::select(Sample), otu.1492, by = 0) %>% 
+    tibble::column_to_rownames("Sample") 
+  
+  master.1492 <- merge(design.1492, otu.1492, by = 0) 
+  
+  # tax_table
+  tax.1492 <- data.frame(read.table("../00_DATA/R1492_OUTPUT/bacteria/98/bacteria_TAXA98.tab"))
+  
+  tax.bac.1492 <- read.table("../00_DATA/R1492_OUTPUT/bacteria/98/bacteria_TAXA98.tab") %>%
+    filter(Kingdom == "Bacteria") %>% 
+    filter(Family != "Mitochondria") %>% 
+    filter(Order != "Chloroplast")
+  
+  tax.plant.1492 <- read.table("../00_DATA/R1492_OUTPUT/bacteria/98/bacteria_TAXA98.tab") %>%
+    filter(Kingdom != "Bacteria")
+  
+
+  
+  physeq.1492 <- phyloseq(otu_table(otu.1492, taxa_are_rows = FALSE), sample_data(design.1492),   tax_table(as.matrix(tax.1492)))
+```
+
+```{r}
+#| label: import data 1185
+#| echo: false
+#| warning: false
+  
+  # DESIGN
+  design.1185 <- read.xlsx("../00_DATA/primer_list_fiona_loic.xlsx", sheet = 1) %>% 
+    filter(PrimerCombo == "27-1492") %>% 
+    select(c(Sample, PrimerComb, SampleOwner, extraction_method, host)) %>% 
+    tibble::column_to_rownames("PrimerComb")
+
+  # OTU table
+  otu.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/98/bacteria_COUNT98.tab")
+  rownames(otu.1185) = gsub("PB403rev1185.", "", rownames(otu.1185))
+  rownames(otu.1185) = gsub("_cutted_filt", "", rownames(otu.1185))
+  
+  otu.sample.1185 <- merge(design.1185 %>% dplyr::select(Sample), otu.1185, by = 0) %>% 
+    tibble::column_to_rownames("Sample") 
+  
+  master.1185 <- merge(design.1185, otu.1185, by = 0) 
+  
+  # tax_table
+  tax.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/98/bacteria_TAXA98.tab")
+    tax.bac.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/98/bacteria_TAXA98.tab") %>%
+      filter(Kingdom == "Bacteria") %>% 
+      filter(Family != "Mitochondria") %>% 
+      filter(Order != "Chloroplast")
+  
+  tax.plant.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/98/bacteria_TAXA98.tab") %>%
+    filter(Kingdom != "Bacteria")
+  
+  physeq.1185 <- phyloseq(otu_table(otu.1185, taxa_are_rows = FALSE), sample_data(design.1185), tax_table(as.matrix(tax.1185)))
+```
+
+
+## 1. Fiona
+### 1.1 Unfiltered data 
+
+Unfiltered data: all OTUs are kept. Including the plant, mitochondria and plastids.
+
+#### 1.1.1 1492R
+
+```{r}
+#| echo: false
+#| warning: false
+
+  fiona.1492 <- master.1492 %>% 
+    filter(SampleOwner == "Fiona")
+  
+  analyse.fiona.1492 <- fiona.1492 %>% 
+    pivot_longer(cols = starts_with("OTU")) %>% 
+    mutate(organism = ifelse(name %in% rownames(tax.bac.1492), "BAC", "PLANT"))
+
+
+  analyse.fiona.1492 %>% 
+    group_by(SampleOwner,extraction_method, host, organism) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+    ggplot(., aes( x = organism, y = OTUsum, fill = organism)) +
+      geom_col() +
+      theme_bw() +
+      facet_grid(extraction_method ~ host) +
+      ylab("Summmed reads per organism") +
+      plot_theme
+  
+
+  analyse.fiona.1492 %>% 
+    group_by(SampleOwner,extraction_method, host, organism) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+      pivot_wider(
+      names_from  = organism,
+      values_from = OTUsum
+    ) %>% 
+  ggplot(., aes(x = extraction_method, y = BAC / (BAC + PLANT) * 100, fill = extraction_method)) +
+    geom_col() + ylab("Proportion of bacterial reads (BAC / (BAC + PLANT) (%)") +
+    theme_bw() +
+    facet_wrap(~host) +
+    ggtitle("27F 1492R") +
+    scale_y_continuous(breaks = c(0,25,50,75,100)) +
+    plot_theme + theme(
+      axis.text.x = element_text(angle = 90)
+    )
+    
+      
+
+  analyse.fiona.1492 %>% 
+    group_by(Sample, SampleOwner,extraction_method, host, organism) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+      pivot_wider(
+      names_from  = organism,
+      values_from = OTUsum
+    ) %>% 
+  ggplot(., aes(x = Sample, y = BAC + PLANT, fill = extraction_method)) +
+    geom_col() + ylab("Number of reads per sample") +
+    theme_bw() +
+    facet_wrap(~host) +
+    ggtitle("27F 1492R") + theme(axis.text.x = element_text(angle = 90)) +
+    plot_theme
+  
+  analyse.fiona.1492 %>% 
+    group_by(Sample, extraction_method, host, organism) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+      pivot_wider(
+      names_from  = organism,
+      values_from = OTUsum
+    ) %>% 
+  ggplot(., aes(x = Sample, y = BAC / (BAC + PLANT) * 100, fill = extraction_method)) +
+    geom_col() + ylab("Proportion of bacterial reads (BAC / (BAC + PLANT) (%)") +
+    theme_bw() +
+    facet_wrap(~host) +
+    ggtitle("27F 1492R") +
+    scale_y_continuous(breaks = c(0,25,50,75,100)) +
+    plot_theme + theme(
+      axis.text.x = element_text(angle = 90)
+    )
+```
+
+#### 1.1.2 1185mR
+
+```{r}
+#| echo: false
+#| warning: false
+
+  fiona.1185 <- master.1185 %>% 
+    filter(SampleOwner == "Fiona")
+
+  analyse.fiona.1185 <- fiona.1185 %>% 
+    pivot_longer(cols = starts_with("OTU")) %>% 
+    mutate(organism = ifelse(name %in% rownames(tax.bac.1185), "BAC", "PLANT"))
+  
+    analyse.fiona.1185 %>% 
+    group_by(SampleOwner,extraction_method, host, organism) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+    ggplot(., aes( x = organism, y = OTUsum, fill = organism)) +
+      geom_col() +
+      theme_bw() +
+      facet_grid(extraction_method ~ host) +
+      ylab("Summmed reads per organism") +
+      plot_theme
+  
+
+  analyse.fiona.1185 %>% 
+    group_by(SampleOwner,extraction_method, host, organism) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+      pivot_wider(
+      names_from  = organism,
+      values_from = OTUsum
+    ) %>% 
+  ggplot(., aes(x = extraction_method, y = BAC / (BAC + PLANT) * 100, fill = extraction_method)) +
+    geom_col() + ylab("Proportion of bacterial reads (BAC / (BAC + PLANT) (%)") +
+    theme_bw() +
+    facet_wrap(~host) +
+    ggtitle("27F 1185mR") +
+    scale_y_continuous(breaks = c(0,25,50,75,100)) +
+    plot_theme + theme(
+      axis.text.x = element_text(angle = 90)
+    )
+    
+      
+
+  analyse.fiona.1185 %>% 
+    group_by(Sample, SampleOwner,extraction_method, host, organism) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+      pivot_wider(
+      names_from  = organism,
+      values_from = OTUsum
+    ) %>% 
+  ggplot(., aes(x = Sample, y = BAC + PLANT, fill = extraction_method)) +
+    geom_col() + ylab("Number of reads per sample") +
+    theme_bw() +
+    facet_wrap(~host) +
+    ggtitle("27F 1185mR") + theme(axis.text.x = element_text(angle = 90)) +
+    plot_theme
+  
+  
+  
+  analyse.fiona.1185 %>% 
+    group_by(Sample, extraction_method, host, organism) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+      pivot_wider(
+      names_from  = organism,
+      values_from = OTUsum
+    ) %>% 
+  ggplot(., aes(x = Sample, y = BAC / (BAC + PLANT) * 100, fill = extraction_method)) +
+    geom_col() + ylab("Proportion of bacterial reads (BAC / (BAC + PLANT) (%)") +
+    theme_bw() +
+    facet_wrap(~host) +
+    ggtitle("27F 1185mR") +
+    scale_y_continuous(breaks = c(0,25,50,75,100)) +
+    plot_theme + theme(
+      axis.text.x = element_text(angle = 90)
+    )
+```
+#### 1.1.3 Compare 1185mR with 1492R
+
+
+```{r}
+#| echo: false
+#| warning: false
+  
+  summary.fiona.1185 <- analyse.fiona.1185 %>% 
+    mutate(primers = "27F_1185mR") %>% 
+    group_by(Sample,extraction_method, host, organism, primers) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+      pivot_wider(
+      names_from  = organism,
+      values_from = OTUsum
+    )
+
+
+   summary.fiona.1492 <- analyse.fiona.1492 %>% 
+    mutate(primers = "27F_1492R") %>% 
+    group_by(Sample,extraction_method, host, organism, primers) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+      pivot_wider(
+      names_from  = organism,
+      values_from = OTUsum
+    )
+   
+   
+   summary.fiona <- rbind(summary.fiona.1185, summary.fiona.1492)
+   
+   
+   
+   ggplot(summary.fiona, aes(x = Sample, y = BAC /(BAC + PLANT), fill = primers)) +
+    geom_col(position = "dodge") + ylab("Proportion of bacteria per read") +
+    theme_bw() +
+    facet_wrap(~host * extraction_method) +
+    theme(axis.text.x = element_text(angle = 90)) + plot_theme
+   
+   ggplot(summary.fiona, aes(x = primers, y = BAC / (BAC + PLANT), label = Sample, fill = primers)) +
+     geom_col() +
+     facet_wrap(~ Sample ) + 
+     theme_bw() + plot_theme + theme(axis.text.x = element_blank())
+```
+
+
+```{r}
+#| echo: false
+#| warning: false
+
+  # rarefaction curves
+  rar.fiona.1492 <- quickRareCurve(otu.sample.1492[11:nrow(otu.sample.1492),-1])
+  
+  ggplot(rar.fiona.1492, aes(x = subsample, y = value, group = sample_name, color = sample_name)) +
+    theme_bw() +
+    geom_line()+
+    xlab("Sequencing Depth")+
+    ylab("Number of ASVs")+
+    ggtitle("Rarefaction plot, 1492R, Maize samples / Unfiltered") +
+    plot_theme
+  
+  
+  
+  rar.fiona.1185 <- quickRareCurve(otu.sample.1185[11:nrow(otu.sample.1492),-1])
+  
+  ggplot(rar.fiona.1185, aes(x = subsample, y = value, group = sample_name, color = sample_name)) +
+    theme_bw() +
+    geom_line()+
+    xlab("Sequencing Depth")+
+    ylab("Number of ASVs")+
+    ggtitle("Rarefaction plot, 1185mR, Maize samples") +
+    plot_theme
+```
+
+The rarefaction curves show a higher diversity for the 1185mR primer pair. However, it seems fishy as it is in only one sample.
+
+Let's have a look the primer pair is capturing one family or phylum that is then dominating.
+
+```{r}
+#| fig-height: 12
+#| fig-width: 10
+  physeq.1185.phylum <- tax_glom(physeq.1185, taxrank = "Phylum")
+
+  physeq.1185.phylum.rel <- transform_sample_counts(
+    physeq.1185.phylum,
+    function(x) x / sum(x)
+  )
+
+  percentages_1185.rel.fiona <- psmelt(physeq.1185.phylum.rel) %>% filter(SampleOwner == "Fiona")
+  
+  
+  relative_plot <- ggplot(data=percentages_1185.rel.fiona, aes(x=sample_Sample, y=Abundance, fill=Phylum))+
+    geom_bar(aes(), stat="identity", position="stack") +
+    theme_bw() + facet_wrap(~host) + ggtitle("1185mR") + plot_theme +
+    theme(
+      legend.position = "bottom",
+      axis.text.x = element_text(angle = 90)
+    ) 
+  
+  relative_plot
+  
+  
+  physeq.1492.phylum <- tax_glom(physeq.1492, taxrank = "Phylum")
+
+  physeq.1492.phylum.rel <- transform_sample_counts(
+    physeq.1492.phylum,
+    function(x) x / sum(x)
+  )
+
+  percentages_1492.rel.fiona <- psmelt(physeq.1492.phylum.rel) %>% filter(SampleOwner == "Fiona")
+  
+  
+  relative_plot <- ggplot(data=percentages_1492.rel.fiona, aes(x=sample_Sample, y=Abundance, fill=Phylum))+
+    geom_bar(aes(), stat="identity", position="stack") +
+    theme_bw() + facet_wrap(~host) + ggtitle("1492R") + plot_theme +
+    theme(
+      legend.position = "bottom",
+      axis.text.x = element_text(angle = 90)
+    ) 
+  
+  relative_plot
+```
+Like this, it's hard to read and not very informative. But the 1185mR tax_table is dominated by one family (Aphagea_fa) which corresponds to a Eukaryote. Aside from this, the two tax tables are pretty similar. Although they are dominated by chloroplasts and mitochondria... 
+
+If there is a difference, it will be much more clear in the filtered data part. 
+
+### 1.2 Filtered data 
+
+Filtered data, only strictly bacteria are kept. 
+
+Rules based on taxonomy assignment:
+
+    - filter(Kingdom == "Bacteria") 
+    - filter(Family != "Mitochondria")
+    - filter(Order != "Chloroplast")
+
+#### 1.2.1 1492R
+
+```{r}
+#| echo: false
+#| warning: false
+  otu.1492.bac <- otu.1492 %>% dplyr::select(all_of(rownames(tax.bac.1492)))
+  
+  otu.sample.1492 <- merge(design.1492 %>% dplyr::select(Sample), otu.1492.bac, by = 0) %>% 
+  tibble::column_to_rownames("Sample") %>% 
+    filter()
+  
+  master.1492 <- merge(design.1492, otu.1492.bac, by = 0) 
+
+
+  fiona.1492 <- master.1492 %>% 
+    filter(SampleOwner == "Fiona")
+  
+  analyse.fiona.1492 <- fiona.1492 %>% 
+    pivot_longer(cols = starts_with("OTU")) %>% 
+    mutate(organism = ifelse(name %in% rownames(tax.bac.1492), "BAC", "PLANT"))
+
+
+  analyse.fiona.1492 %>% 
+    group_by(SampleOwner,extraction_method, host, organism) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+    ggplot(., aes( x = organism, y = OTUsum, fill = organism)) +
+      geom_col() +
+      theme_bw() +
+      facet_grid(extraction_method ~ host) +
+      ylab("Summmed reads per organism") +
+      plot_theme
+```
+
+#### 1.2.2 1185mR
+
+```{r}
+#| echo: false
+#| warning: false
+
+  otu.1185.bac <- otu.1185 %>% dplyr::select(all_of(rownames(tax.bac.1185)))
+  
+  otu.sample.1185 <- merge(design.1185 %>% dplyr::select(Sample), otu.1185.bac, by = 0) %>% 
+  tibble::column_to_rownames("Sample") %>% 
+    filter()
+  
+  master.1185 <- merge(design.1185, otu.1185.bac, by = 0) 
+
+  fiona.1185 <- master.1185 %>% 
+    filter(SampleOwner == "Fiona")
+
+  analyse.fiona.1185 <- fiona.1185 %>% 
+    pivot_longer(cols = starts_with("OTU")) %>% 
+    mutate(organism = ifelse(name %in% rownames(tax.bac.1185), "BAC", "PLANT"))
+  
+    analyse.fiona.1185 %>% 
+    group_by(SampleOwner,extraction_method, host, organism) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+    ggplot(., aes( x = organism, y = OTUsum, fill = organism)) +
+      geom_col() +
+      theme_bw() +
+      facet_grid(extraction_method ~ host) +
+      ylab("Summmed reads per organism") +
+      plot_theme
+```
+#### 1.2.3 Compare 1185mR with 1492R
+
+
+```{r}
+#| echo: false
+#| warning: false
+  
+  summary.fiona.1185 <- analyse.fiona.1185 %>% 
+    mutate(primers = "27F_1185mR") %>% 
+    group_by(Sample,extraction_method, host, organism, primers) %>% 
+    summarise(OTUsum = sum(value))
+
+
+   summary.fiona.1492 <- analyse.fiona.1492 %>% 
+    mutate(primers = "27F_1492R") %>% 
+    group_by(Sample,extraction_method, host, organism, primers) %>% 
+    summarise(OTUsum = sum(value))
+   
+   
+   summary.fiona <- rbind(summary.fiona.1185, summary.fiona.1492)
+   
+   
+   
+   
+   ggplot(summary.fiona, aes(x = primers, y = OTUsum, label = Sample, fill = primers)) +
+     geom_col() +
+     facet_wrap(~ Sample ) + 
+     theme_bw() + plot_theme + theme(axis.text.x = element_blank()) + ylab("Number of bacterial reads")
+```
+
+
+```{r}
+#| echo: false
+#| warning: false
+
+  # rarefaction curves
+  rar.fiona.1492 <- quickRareCurve(otu.sample.1492[11:nrow(otu.sample.1492),-1])
+  
+  ggplot(rar.fiona.1492, aes(x = subsample, y = value, group = sample_name, color = sample_name)) +
+    theme_bw() +
+    geom_line()+
+    xlab("Sequencing Depth")+
+    ylab("Number of ASVs")+
+    ggtitle("Rarefaction plot, 1492R, Maize samples / Unfiltered") +
+    plot_theme
+  
+  
+  
+  rar.fiona.1185 <- quickRareCurve(otu.sample.1185[11:nrow(otu.sample.1492),-1])
+  
+  ggplot(rar.fiona.1185, aes(x = subsample, y = value, group = sample_name, color = sample_name)) +
+    theme_bw() +
+    geom_line()+
+    xlab("Sequencing Depth")+
+    ylab("Number of ASVs")+
+    ggtitle("Rarefaction plot, 1185mR, Maize samples") +
+    plot_theme
+```
+
+The rarefaction curves show a higher diversity for the 1185mR primer pair. 
+
+```{r}
+#| fig-height: 12
+#| fig-width: 10
+
+  physeq.1185.filtered <- prune_taxa(rownames(tax.bac.1185), physeq.1185)
+  physeq.1185.phylum <- tax_glom(physeq.1185.filtered, taxrank = "Phylum")
+
+  physeq.1185.phylum.rel <- transform_sample_counts(
+    physeq.1185.phylum,
+    function(x) x / sum(x)
+  )
+
+  percentages_1185.rel.fiona <- psmelt(physeq.1185.phylum.rel) %>% filter(SampleOwner == "Fiona")
+  
+  
+  relative_plot <- ggplot(data=percentages_1185.rel.fiona, aes(x=sample_Sample, y=Abundance, fill=Phylum))+
+    geom_bar(aes(), stat="identity", position="stack") +
+    theme_bw() + facet_wrap(~host) + ggtitle("1185mR") + plot_theme +
+    theme(
+      legend.position = "bottom",
+      axis.text.x = element_text(angle = 90)
+    ) 
+  
+  relative_plot
+  
+  physeq.1492.filtered <- prune_taxa(rownames(tax.bac.1492), physeq.1492)
+  physeq.1492.phylum <- tax_glom(physeq.1492.filtered, taxrank = "Phylum")
+
+  physeq.1492.phylum.rel <- transform_sample_counts(
+    physeq.1492.phylum,
+    function(x) x / sum(x)
+  )
+
+  percentages_1492.rel.fiona <- psmelt(physeq.1492.phylum.rel) %>% filter(SampleOwner == "Fiona")
+  
+  
+  relative_plot <- ggplot(data=percentages_1492.rel.fiona, aes(x=sample_Sample, y=Abundance, fill=Phylum))+
+    geom_bar(aes(), stat="identity", position="stack") +
+    theme_bw() + facet_wrap(~host) + ggtitle("1492R") + plot_theme +
+    theme(
+      legend.position = "bottom",
+      axis.text.x = element_text(angle = 90)
+    ) 
+  
+  relative_plot
+```
+
+## 2. Loïc 
+
+### 2.1 Unfiltered data 
+
+Unfiltered data: all OTUs are kept. Including the plant, mitochondria and plastids.
+
+```{r}
+#| label: reimport data 1492R
+#| echo: false
+#| warning: false
+  
+  # DESIGN
+  design.1492 <- read.xlsx("../00_DATA/primer_list_fiona_loic.xlsx", sheet = 1) %>% 
+    filter(PrimerCombo == "27-1492") %>% 
+    select(c(Sample, PrimerComb, SampleOwner, extraction_method, host)) %>% 
+    tibble::column_to_rownames("PrimerComb")
+
+  # OTU table
+  otu.1492 <- read.table("../00_DATA/R1492_OUTPUT/bacteria/98/bacteria_COUNT98.tab")
+  rownames(otu.1492) = gsub("PB403rev1492.", "", rownames(otu.1492))
+  rownames(otu.1492) = gsub("_cutted_filt", "", rownames(otu.1492))
+  
+  otu.sample.1492 <- merge(design.1492 %>% dplyr::select(Sample), otu.1492, by = 0) %>% 
+    tibble::column_to_rownames("Sample") 
+  
+  master.1492 <- merge(design.1492, otu.1492, by = 0) 
+  
+  # tax_table
+  tax.1492 <- data.frame(read.table("../00_DATA/R1492_OUTPUT/bacteria/98/bacteria_TAXA98.tab"))
+  
+  tax.bac.1492 <- read.table("../00_DATA/R1492_OUTPUT/bacteria/98/bacteria_TAXA98.tab") %>%
+    filter(Kingdom == "Bacteria") %>% 
+    filter(Family != "Mitochondria") %>% 
+    filter(Order != "Chloroplast")
+  
+  tax.plant.1492 <- read.table("../00_DATA/R1492_OUTPUT/bacteria/98/bacteria_TAXA98.tab") %>%
+    filter(Kingdom != "Bacteria")
+  
+
+  
+  physeq.1492 <- phyloseq(otu_table(otu.1492, taxa_are_rows = FALSE), sample_data(design.1492),   tax_table(as.matrix(tax.1492)))
+```
+
+```{r}
+#| label: reimport data 1185
+#| echo: false
+#| warning: false
+  
+  # DESIGN
+  design.1185 <- read.xlsx("../00_DATA/primer_list_fiona_loic.xlsx", sheet = 1) %>% 
+    filter(PrimerCombo == "27-1492") %>% 
+    select(c(Sample, PrimerComb, SampleOwner, extraction_method, host)) %>% 
+    tibble::column_to_rownames("PrimerComb")
+
+  # OTU table
+  otu.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/98/bacteria_COUNT98.tab")
+  rownames(otu.1185) = gsub("PB403rev1185.", "", rownames(otu.1185))
+  rownames(otu.1185) = gsub("_cutted_filt", "", rownames(otu.1185))
+  
+  otu.sample.1185 <- merge(design.1185 %>% dplyr::select(Sample), otu.1185, by = 0) %>% 
+    tibble::column_to_rownames("Sample") 
+  
+  master.1185 <- merge(design.1185, otu.1185, by = 0) 
+  
+  # tax_table
+  tax.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/98/bacteria_TAXA98.tab")
+    tax.bac.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/98/bacteria_TAXA98.tab") %>%
+      filter(Kingdom == "Bacteria") %>% 
+      filter(Family != "Mitochondria") %>% 
+      filter(Order != "Chloroplast")
+  
+  tax.plant.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/98/bacteria_TAXA98.tab") %>%
+    filter(Kingdom != "Bacteria")
+  
+  physeq.1185 <- phyloseq(otu_table(otu.1185, taxa_are_rows = FALSE), sample_data(design.1185), tax_table(as.matrix(tax.1185)))
+```
+
+#### 2.1.1 1492R
+
+```{r}
+#| echo: false
+#| warning: false
+
+  loic.1492 <- master.1492 %>% 
+    filter(SampleOwner == "Loïc")
+  
+  analyse.loic.1492 <- loic.1492 %>% 
+    pivot_longer(cols = starts_with("OTU")) %>% 
+    mutate(organism = ifelse(name %in% rownames(tax.bac.1492), "BAC", "PLANT"))
+
+
+  analyse.loic.1492 %>% 
+    group_by(SampleOwner,extraction_method, host, organism) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+    ggplot(., aes( x = organism, y = OTUsum, fill = organism)) +
+      geom_col() +
+      theme_bw() +
+      facet_grid(extraction_method ~ host) +
+      ylab("Summmed reads per organism") +
+      plot_theme
+  
+
+  analyse.loic.1492 %>% 
+    group_by(SampleOwner,extraction_method, host, organism) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+      pivot_wider(
+      names_from  = organism,
+      values_from = OTUsum
+    ) %>% 
+  ggplot(., aes(x = extraction_method, y = BAC / (BAC + PLANT) * 100, fill = extraction_method)) +
+    geom_col() + ylab("Proportion of bacterial reads (BAC / (BAC + PLANT) (%)") +
+    theme_bw() +
+    facet_wrap(~host) +
+    ggtitle("27F 1492R") +
+    scale_y_continuous(breaks = c(0,25,50,75,100)) +
+    plot_theme + theme(
+      axis.text.x = element_text(angle = 90)
+    )
+    
+      
+
+  analyse.loic.1492 %>% 
+    group_by(Sample, SampleOwner,extraction_method, host, organism) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+      pivot_wider(
+      names_from  = organism,
+      values_from = OTUsum
+    ) %>% 
+  ggplot(., aes(x = Sample, y = BAC + PLANT, fill = extraction_method)) +
+    geom_col() + ylab("Number of reads per sample") +
+    theme_bw() +
+    facet_wrap(~host) +
+    ggtitle("27F 1492R") + theme(axis.text.x = element_text(angle = 90)) +
+    plot_theme
+  
+  analyse.loic.1492 %>% 
+    group_by(Sample, extraction_method, host, organism) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+      pivot_wider(
+      names_from  = organism,
+      values_from = OTUsum
+    ) %>% 
+  ggplot(., aes(x = Sample, y = BAC / (BAC + PLANT) * 100, fill = extraction_method)) +
+    geom_col() + ylab("Proportion of bacterial reads (BAC / (BAC + PLANT) (%)") +
+    theme_bw() +
+    facet_wrap(~host) +
+    ggtitle("27F 1492R") +
+    scale_y_continuous(breaks = c(0,25,50,75,100)) +
+    plot_theme + theme(
+      axis.text.x = element_text(angle = 90)
+    )
+```
+
+#### 1.1.2 1185mR
+
+```{r}
+#| echo: false
+#| warning: false
+
+  loic.1185 <- master.1185 %>% 
+    filter(SampleOwner == "Loïc")
+
+  analyse.loic.1185 <- loic.1185 %>% 
+    pivot_longer(cols = starts_with("OTU")) %>% 
+    mutate(organism = ifelse(name %in% rownames(tax.bac.1185), "BAC", "PLANT"))
+  
+    analyse.loic.1185 %>% 
+    group_by(SampleOwner,extraction_method, host, organism) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+    ggplot(., aes( x = organism, y = OTUsum, fill = organism)) +
+      geom_col() +
+      theme_bw() +
+      facet_grid(extraction_method ~ host) +
+      ylab("Summmed reads per organism") +
+      plot_theme
+  
+
+  analyse.loic.1185 %>% 
+    group_by(SampleOwner,extraction_method, host, organism) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+      pivot_wider(
+      names_from  = organism,
+      values_from = OTUsum
+    ) %>% 
+  ggplot(., aes(x = extraction_method, y = BAC / (BAC + PLANT) * 100, fill = extraction_method)) +
+    geom_col() + ylab("Proportion of bacterial reads (BAC / (BAC + PLANT) (%)") +
+    theme_bw() +
+    facet_wrap(~host) +
+    ggtitle("27F 1185mR") +
+    scale_y_continuous(breaks = c(0,25,50,75,100)) +
+    plot_theme + theme(
+      axis.text.x = element_text(angle = 90)
+    )
+    
+      
+
+  analyse.loic.1185 %>% 
+    group_by(Sample, SampleOwner,extraction_method, host, organism) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+      pivot_wider(
+      names_from  = organism,
+      values_from = OTUsum
+    ) %>% 
+  ggplot(., aes(x = Sample, y = BAC + PLANT, fill = extraction_method)) +
+    geom_col() + ylab("Number of reads per sample") +
+    theme_bw() +
+    facet_wrap(~host) +
+    ggtitle("27F 1185mR") + theme(axis.text.x = element_text(angle = 90)) +
+    plot_theme
+  
+  
+  
+  analyse.loic.1185 %>% 
+    group_by(Sample, extraction_method, host, organism) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+      pivot_wider(
+      names_from  = organism,
+      values_from = OTUsum
+    ) %>% 
+  ggplot(., aes(x = Sample, y = BAC / (BAC + PLANT) * 100, fill = extraction_method)) +
+    geom_col() + ylab("Proportion of bacterial reads (BAC / (BAC + PLANT) (%)") +
+    theme_bw() +
+    facet_wrap(~host) +
+    ggtitle("27F 1185mR") +
+    scale_y_continuous(breaks = c(0,25,50,75,100)) +
+    plot_theme + theme(
+      axis.text.x = element_text(angle = 90)
+    )
+```
+#### 1.1.3 Compare 1185mR with 1492R
+
+
+```{r}
+#| echo: false
+#| warning: false
+  
+  summary.loic.1185 <- analyse.loic.1185 %>% 
+    mutate(primers = "27F_1185mR") %>% 
+    group_by(Sample,extraction_method, host, organism, primers) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+      pivot_wider(
+      names_from  = organism,
+      values_from = OTUsum
+    )
+
+
+   summary.loic.1492 <- analyse.loic.1492 %>% 
+    mutate(primers = "27F_1492R") %>% 
+    group_by(Sample,extraction_method, host, organism, primers) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+      pivot_wider(
+      names_from  = organism,
+      values_from = OTUsum
+    )
+   
+   
+   summary.loic <- rbind(summary.loic.1185, summary.loic.1492)
+   
+   
+   
+   ggplot(summary.loic, aes(x = Sample, y = BAC /(BAC + PLANT), fill = primers)) +
+    geom_col(position = "dodge") + ylab("Proportion of bacteria per read") +
+    theme_bw() +
+    facet_wrap(~host * extraction_method) +
+    theme(axis.text.x = element_text(angle = 90)) + plot_theme
+   
+   ggplot(summary.loic, aes(x = primers, y = BAC / (BAC + PLANT), label = Sample, fill = primers)) +
+     geom_col() +
+     facet_wrap(~ Sample ) + 
+     theme_bw() + plot_theme + theme(axis.text.x = element_blank())
+```
+
+
+```{r}
+#| echo: false
+#| warning: false
+
+  # rarefaction curves
+  rar.loic.1492 <- quickRareCurve(otu.sample.1492[1:10,-1])
+  
+  ggplot(rar.loic.1492, aes(x = subsample, y = value, group = sample_name, color = sample_name)) +
+    theme_bw() +
+    geom_line()+
+    xlab("Sequencing Depth")+
+    ylab("Number of ASVs")+
+    ggtitle("Rarefaction plot, 1492R, Maize samples / Unfiltered") +
+    plot_theme
+  
+  
+  
+  rar.loic.1185 <- quickRareCurve(otu.sample.1185[1:10,-1])
+  
+  ggplot(rar.loic.1185, aes(x = subsample, y = value, group = sample_name, color = sample_name)) +
+    theme_bw() +
+    geom_line()+
+    xlab("Sequencing Depth")+
+    ylab("Number of ASVs")+
+    ggtitle("Rarefaction plot, 1185mR, Maize samples") +
+    plot_theme
+```
+
+The rarefaction curves show a higher diversity for the 1185mR primer pair. However, it seems fishy as it is in only one sample.
+
+Let's have a look the primer pair is capturing one family or phylum that is then dominating.
+
+```{r}
+#| fig-height: 12
+#| fig-width: 10
+  physeq.1185.phylum <- tax_glom(physeq.1185, taxrank = "Phylum")
+
+  physeq.1185.phylum.rel <- transform_sample_counts(
+    physeq.1185.phylum,
+    function(x) x / sum(x)
+  )
+
+  percentages_1185.rel.loic <- psmelt(physeq.1185.phylum.rel) %>% filter(SampleOwner == "Loïc")
+  
+  
+  relative_plot <- ggplot(data=percentages_1185.rel.loic, aes(x=sample_Sample, y=Abundance, fill=Phylum))+
+    geom_bar(aes(), stat="identity", position="stack") +
+    theme_bw() + facet_wrap(~host) + ggtitle("1185mR") + plot_theme +
+    theme(
+      legend.position = "bottom",
+      axis.text.x = element_text(angle = 90)
+    ) 
+  
+  relative_plot
+  
+  
+  physeq.1492.phylum <- tax_glom(physeq.1492, taxrank = "Phylum")
+
+  physeq.1492.phylum.rel <- transform_sample_counts(
+    physeq.1492.phylum,
+    function(x) x / sum(x)
+  )
+
+  percentages_1492.rel.loic <- psmelt(physeq.1492.phylum.rel) %>% filter(SampleOwner == "Loïc")
+  
+  
+  relative_plot <- ggplot(data=percentages_1492.rel.loic, aes(x=sample_Sample, y=Abundance, fill=Phylum))+
+    geom_bar(aes(), stat="identity", position="stack") +
+    theme_bw() + facet_wrap(~host) + ggtitle("1492R") + plot_theme +
+    theme(
+      legend.position = "bottom",
+      axis.text.x = element_text(angle = 90)
+    ) 
+  
+  relative_plot
+```
+
+
+### 2.2 Filtered data 
+
+Filtered data, only strictly bacteria are kept. 
+
+Rules based on taxonomy assignment:
+
+    - filter(Kingdom == "Bacteria") 
+    - filter(Family != "Mitochondria")
+    - filter(Order != "Chloroplast")
+
+#### 2.2.1 1492R
+
+```{r}
+#| echo: false
+#| warning: false
+  otu.1492.bac <- otu.1492 %>% dplyr::select(all_of(rownames(tax.bac.1492)))
+  
+  otu.sample.1492 <- merge(design.1492 %>% dplyr::select(Sample), otu.1492.bac, by = 0) %>% 
+  tibble::column_to_rownames("Sample") %>% 
+    filter()
+  
+  master.1492 <- merge(design.1492, otu.1492.bac, by = 0) 
+
+
+  loic.1492 <- master.1492 %>% 
+    filter(SampleOwner == "Loïc")
+  
+  analyse.loic.1492 <- loic.1492 %>% 
+    pivot_longer(cols = starts_with("OTU")) %>% 
+    mutate(organism = ifelse(name %in% rownames(tax.bac.1492), "BAC", "PLANT"))
+
+
+  analyse.loic.1492 %>% 
+    group_by(SampleOwner,extraction_method, host, organism) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+    ggplot(., aes( x = organism, y = OTUsum, fill = organism)) +
+      geom_col() +
+      theme_bw() +
+      facet_grid(extraction_method ~ host) +
+      ylab("Summmed reads per organism") +
+      plot_theme
+```
+
+#### 2.2.2 1185mR
+
+```{r}
+#| echo: false
+#| warning: false
+
+  otu.1185.bac <- otu.1185 %>% dplyr::select(all_of(rownames(tax.bac.1185)))
+  
+  otu.sample.1185 <- merge(design.1185 %>% dplyr::select(Sample), otu.1185.bac, by = 0) %>% 
+  tibble::column_to_rownames("Sample") %>% 
+    filter()
+  
+  master.1185 <- merge(design.1185, otu.1185.bac, by = 0) 
+
+  loic.1185 <- master.1185 %>% 
+    filter(SampleOwner == "Loïc")
+
+  analyse.loic.1185 <- loic.1185 %>% 
+    pivot_longer(cols = starts_with("OTU")) %>% 
+    mutate(organism = ifelse(name %in% rownames(tax.bac.1185), "BAC", "PLANT"))
+  
+    analyse.loic.1185 %>% 
+    group_by(SampleOwner,extraction_method, host, organism) %>% 
+    summarise(OTUsum = sum(value)) %>% 
+    ggplot(., aes( x = organism, y = OTUsum, fill = organism)) +
+      geom_col() +
+      theme_bw() +
+      facet_grid(extraction_method ~ host) +
+      ylab("Summmed reads per organism") +
+      plot_theme
+```
+
+#### 2.2.3 Compare 1185mR with 1492R
+
+```{r}
+#| echo: false
+#| warning: false
+  
+  summary.loic.1185 <- analyse.loic.1185 %>% 
+    mutate(primers = "27F_1185mR") %>% 
+    group_by(Sample,extraction_method, host, organism, primers) %>% 
+    summarise(OTUsum = sum(value))
+
+
+   summary.loic.1492 <- analyse.loic.1492 %>% 
+    mutate(primers = "27F_1492R") %>% 
+    group_by(Sample,extraction_method, host, organism, primers) %>% 
+    summarise(OTUsum = sum(value))
+   
+   
+   summary.loic<- rbind(summary.loic.1185, summary.loic.1492)
+   
+   
+   
+   
+   ggplot(summary.loic, aes(x = primers, y = OTUsum, label = Sample, fill = primers)) +
+     geom_col() +
+     facet_wrap(~ Sample ) + 
+     theme_bw() + plot_theme + theme(axis.text.x = element_blank()) + ylab("Number of bacterial reads")
+```
+
+
+```{r}
+#| echo: false
+#| warning: false
+
+  # rarefaction curves
+  rar.loic.1492 <- quickRareCurve(otu.sample.1492[1:10,-1])
+  
+  ggplot(rar.loic.1492, aes(x = subsample, y = value, group = sample_name, color = sample_name)) +
+    theme_bw() +
+    geom_line()+
+    xlab("Sequencing Depth")+
+    ylab("Number of ASVs")+
+    ggtitle("Rarefaction plot, 1492R, Maize samples / Unfiltered") +
+    plot_theme
+  
+  
+  
+  rar.loic.1185 <- quickRareCurve(otu.sample.1185[1:10,-1])
+  
+  ggplot(rar.loic.1185, aes(x = subsample, y = value, group = sample_name, color = sample_name)) +
+    theme_bw() +
+    geom_line()+
+    xlab("Sequencing Depth")+
+    ylab("Number of ASVs")+
+    ggtitle("Rarefaction plot, 1185mR, Maize samples") +
+    plot_theme
+```
+
+The rarefaction curves show a higher absolute diversity for the 1185mR primer pair but in general over the samples it's the opposite. 
+
+```{r}
+#| fig-height: 12
+#| fig-width: 10
+
+  physeq.1185.filtered <- prune_taxa(rownames(tax.bac.1185), physeq.1185)
+  physeq.1185.phylum <- tax_glom(physeq.1185.filtered, taxrank = "Phylum")
+
+  physeq.1185.phylum.rel <- transform_sample_counts(
+    physeq.1185.phylum,
+    function(x) x / sum(x)
+  )
+
+  percentages_1185.rel.loic <- psmelt(physeq.1185.phylum.rel) %>% filter(SampleOwner == "Loïc")
+  
+  
+  relative_plot <- ggplot(data=percentages_1185.rel.loic, aes(x=sample_Sample, y=Abundance, fill=Phylum))+
+    geom_bar(aes(), stat="identity", position="stack") +
+    theme_bw() + facet_wrap(~host) + ggtitle("1185mR") + plot_theme +
+    theme(
+      legend.position = "bottom",
+      axis.text.x = element_text(angle = 90)
+    ) 
+  
+  relative_plot
+  
+  physeq.1492.filtered <- prune_taxa(rownames(tax.bac.1492), physeq.1492)
+  physeq.1492.phylum <- tax_glom(physeq.1492.filtered, taxrank = "Phylum")
+
+  physeq.1492.phylum.rel <- transform_sample_counts(
+    physeq.1492.phylum,
+    function(x) x / sum(x)
+  )
+
+  percentages_1492.rel.loic <- psmelt(physeq.1492.phylum.rel) %>% filter(SampleOwner == "Loïc")
+  
+  
+  relative_plot <- ggplot(data=percentages_1492.rel.loic, aes(x=sample_Sample, y=Abundance, fill=Phylum))+
+    geom_bar(aes(), stat="identity", position="stack") +
+    theme_bw() + facet_wrap(~host) + ggtitle("1492R") + plot_theme +
+    theme(
+      legend.position = "bottom",
+      axis.text.x = element_text(angle = 90)
+    ) 
+  
+  relative_plot
+```
+
+
+
+
+
+
+
+
