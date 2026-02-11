@@ -1,13 +1,12 @@
 ---
-title: "16S Primer Comp at 97%"
-date: 02-09-2026
+title: "16S Primer Comp at 99%"
+date: 02-11-2026
 author: Loïc Thurre
 format:
     html:
       toc: true
       toc-location: left
       toc-depth: 4
-  
 ---
 
 # 16S Root bacterial profiling with PacBio + Kinnex
@@ -95,7 +94,7 @@ library(plotly)
  )
 ```
 
-# 97% Clustering
+# 99% Clustering
 ## 0. Data import
 
 ```{r}
@@ -110,7 +109,7 @@ library(plotly)
     tibble::column_to_rownames("PrimerComb")
 
   # OTU table
-  otu.1492 <- read.table("../00_DATA/R1492_OUTPUT/bacteria/97/bacteria_COUNT97.tab")
+  otu.1492 <- read.table("../00_DATA/R1492_OUTPUT/bacteria/99/bacteria_COUNT99.tab")
   rownames(otu.1492) = gsub("PB403rev1492.", "", rownames(otu.1492))
   rownames(otu.1492) = gsub("_cutted_filt", "", rownames(otu.1492))
   
@@ -120,14 +119,14 @@ library(plotly)
   master.1492 <- merge(design.1492, otu.1492, by = 0) 
   
   # tax_table
-  tax.1492 <- data.frame(read.table("../00_DATA/R1492_OUTPUT/bacteria/97/bacteria_TAXA97.tab"))
+  tax.1492 <- data.frame(read.table("../00_DATA/R1492_OUTPUT/bacteria/99/bacteria_TAXA99.tab"))
   
-  tax.bac.1492 <- read.table("../00_DATA/R1492_OUTPUT/bacteria/97/bacteria_TAXA97.tab") %>%
+  tax.bac.1492 <- read.table("../00_DATA/R1492_OUTPUT/bacteria/99/bacteria_TAXA99.tab") %>%
     filter(Kingdom == "Bacteria") %>% 
     filter(Family != "Mitochondria") %>% 
     filter(Order != "Chloroplast")
   
-  tax.plant.1492 <- read.table("../00_DATA/R1492_OUTPUT/bacteria/97/bacteria_TAXA97.tab") %>%
+  tax.plant.1492 <- read.table("../00_DATA/R1492_OUTPUT/bacteria/99/bacteria_TAXA99.tab") %>%
     filter(Kingdom != "Bacteria")
   
 
@@ -147,7 +146,7 @@ library(plotly)
     tibble::column_to_rownames("PrimerComb")
 
   # OTU table
-  otu.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/97/bacteria_COUNT97.tab")
+  otu.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/99/bacteria_COUNT99.tab")
   rownames(otu.1185) = gsub("PB403rev1185.", "", rownames(otu.1185))
   rownames(otu.1185) = gsub("_cutted_filt", "", rownames(otu.1185))
   
@@ -157,13 +156,13 @@ library(plotly)
   master.1185 <- merge(design.1185, otu.1185, by = 0) 
   
   # tax_table
-  tax.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/97/bacteria_TAXA97.tab")
-    tax.bac.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/97/bacteria_TAXA97.tab") %>%
+  tax.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/99/bacteria_TAXA99.tab")
+    tax.bac.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/99/bacteria_TAXA99.tab") %>%
       filter(Kingdom == "Bacteria") %>% 
       filter(Family != "Mitochondria") %>% 
       filter(Order != "Chloroplast")
   
-  tax.plant.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/97/bacteria_TAXA97.tab") %>%
+  tax.plant.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/99/bacteria_TAXA99.tab") %>%
     filter(Kingdom != "Bacteria")
   
   physeq.1185 <- phyloseq(otu_table(otu.1185, taxa_are_rows = FALSE), sample_data(design.1185), tax_table(as.matrix(tax.1185)))
@@ -175,7 +174,7 @@ library(plotly)
 
 Unfiltered data: all OTUs are kept. Including the plant, mitochondria and plastids.
 
-  #### 1.1.1 1492R
+#### 1.1.1 1492R
 
 ```{r}
 #| echo: false
@@ -662,7 +661,7 @@ Unfiltered data: all OTUs are kept. Including the plant, mitochondria and plasti
     tibble::column_to_rownames("PrimerComb")
 
   # OTU table
-  otu.1492 <- read.table("../00_DATA/R1492_OUTPUT/bacteria/97/bacteria_COUNT97.tab")
+  otu.1492 <- read.table("../00_DATA/R1492_OUTPUT/bacteria/99/bacteria_COUNT99.tab")
   rownames(otu.1492) = gsub("PB403rev1492.", "", rownames(otu.1492))
   rownames(otu.1492) = gsub("_cutted_filt", "", rownames(otu.1492))
   
@@ -672,14 +671,14 @@ Unfiltered data: all OTUs are kept. Including the plant, mitochondria and plasti
   master.1492 <- merge(design.1492, otu.1492, by = 0) 
   
   # tax_table
-  tax.1492 <- data.frame(read.table("../00_DATA/R1492_OUTPUT/bacteria/97/bacteria_TAXA97.tab"))
+  tax.1492 <- data.frame(read.table("../00_DATA/R1492_OUTPUT/bacteria/99/bacteria_TAXA99.tab"))
   
-  tax.bac.1492 <- read.table("../00_DATA/R1492_OUTPUT/bacteria/97/bacteria_TAXA97.tab") %>%
+  tax.bac.1492 <- read.table("../00_DATA/R1492_OUTPUT/bacteria/99/bacteria_TAXA99.tab") %>%
     filter(Kingdom == "Bacteria") %>% 
     filter(Family != "Mitochondria") %>% 
     filter(Order != "Chloroplast")
   
-  tax.plant.1492 <- read.table("../00_DATA/R1492_OUTPUT/bacteria/97/bacteria_TAXA97.tab") %>%
+  tax.plant.1492 <- read.table("../00_DATA/R1492_OUTPUT/bacteria/99/bacteria_TAXA99.tab") %>%
     filter(Kingdom != "Bacteria")
   
 
@@ -699,7 +698,7 @@ Unfiltered data: all OTUs are kept. Including the plant, mitochondria and plasti
     tibble::column_to_rownames("PrimerComb")
 
   # OTU table
-  otu.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/97/bacteria_COUNT97.tab")
+  otu.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/99/bacteria_COUNT99.tab")
   rownames(otu.1185) = gsub("PB403rev1185.", "", rownames(otu.1185))
   rownames(otu.1185) = gsub("_cutted_filt", "", rownames(otu.1185))
   
@@ -709,13 +708,13 @@ Unfiltered data: all OTUs are kept. Including the plant, mitochondria and plasti
   master.1185 <- merge(design.1185, otu.1185, by = 0) 
   
   # tax_table
-  tax.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/97/bacteria_TAXA97.tab")
-    tax.bac.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/97/bacteria_TAXA97.tab") %>%
+  tax.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/99/bacteria_TAXA99.tab")
+    tax.bac.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/99/bacteria_TAXA99.tab") %>%
       filter(Kingdom == "Bacteria") %>% 
       filter(Family != "Mitochondria") %>% 
       filter(Order != "Chloroplast")
   
-  tax.plant.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/97/bacteria_TAXA97.tab") %>%
+  tax.plant.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/99/bacteria_TAXA99.tab") %>%
     filter(Kingdom != "Bacteria")
   
   physeq.1185 <- phyloseq(otu_table(otu.1185, taxa_are_rows = FALSE), sample_data(design.1185), tax_table(as.matrix(tax.1185)))

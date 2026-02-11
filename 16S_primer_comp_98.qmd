@@ -6,6 +6,7 @@ format:
     html:
       toc: true
       toc-location: left
+      toc-depth: 4
 ---
 
 # 16S Root bacterial profiling with PacBio + Kinnex
