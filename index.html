@@ -1,20 +1,98 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="UTF-8">
-    <title>Home</title>
-  </head>
-  <body>
-    <h1>16S Kinnex primer comparaison 27F 1492R vs 27F 1185mR</h1>
-	<h3>Clustering level:</h3>
-	<ul>
-		<li>
-			<a href ="./16S_primer_comp.html">97%</ai>
-		</li>
-		<li>
-			<a href ="./16S_primer_comp_98.html">98%</a>
-		</li>
-	</ul>
-  </body>
-</html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>16S Kinnex Primer Comparison</title>
 
+<style>
+    body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: linear-gradient(135deg, #1f2937, #111827);
+        color: #f9fafb;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+    }
+
+    .card {
+        background: #1f2937;
+        padding: 40px;
+        border-radius: 12px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        text-align: center;
+        max-width: 500px;
+        width: 90%;
+    }
+
+    h1 {
+        margin-top: 0;
+        font-size: 1.8rem;
+        line-height: 1.4;
+    }
+
+    h3 {
+        margin-top: 30px;
+        font-weight: 400;
+        color: #9ca3af;
+    }
+
+    .button-container {
+        margin-top: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    a.button {
+        display: block;
+        padding: 12px 20px;
+        background: #2563eb;
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    a.button:hover {
+        background: #3b82f6;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(37,99,235,0.4);
+    }
+
+    footer {
+        margin-top: 30px;
+        font-size: 0.8rem;
+        color: #6b7280;
+    }
+</style>
+</head>
+
+<body>
+
+<div class="card">
+    <h1>16S Kinnex Primer Comparison</h1>
+    <p>27F–1492R vs 27F–1185mR</p>
+
+    <h3>Clustering Level</h3>
+
+    <div class="button-container">
+        <a class="button" href="./16S_primer_comp.html">
+            View 97% Clustering
+        </a>
+
+        <a class="button" href="./16S_primer_comp_98.html">
+            View 98% Clustering
+        </a>
+    </div>
+
+    <footer>
+        Generated analysis results
+    </footer>
+</div>
+
+</body>
+</html>
