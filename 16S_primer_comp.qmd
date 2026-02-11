@@ -1,10 +1,13 @@
 ---
-title: "16S_primer_comp"
+title: "index"
 date: 02-09-2026
 author: Loïc Thurre
-format: html
-type: website
-  output-dir: docs
+format:
+    html:
+      toc: true
+      toc-location: left
+
+  
 ---
 
 # 16S Root bacterial profiling with PacBio + Kinnex
