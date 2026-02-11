@@ -380,7 +380,7 @@ Unfiltered data: all OTUs are kept. Including the plant, mitochondria and plasti
 #| warning: false
 
   # rarefaction curves
-  rar.fiona.1492 <- quickRareCurve(otu.sample.1492[11:nrow(otu.sample.1492),-1])
+  rar.fiona.1492 <- quickRareCurve(otu.sample.1492[grepl("FF", rownames(otu.sample.1492)),-1])
   
   ggplot(rar.fiona.1492, aes(x = subsample, y = value, group = sample_name, color = sample_name)) +
     theme_bw() +
@@ -392,7 +392,7 @@ Unfiltered data: all OTUs are kept. Including the plant, mitochondria and plasti
   
   
   
-  rar.fiona.1185 <- quickRareCurve(otu.sample.1185[11:nrow(otu.sample.1492),-1])
+  rar.fiona.1185 <- quickRareCurve(otu.sample.1185[grepl("FF", rownames(otu.sample.1492)),-1])
   
   ggplot(rar.fiona.1185, aes(x = subsample, y = value, group = sample_name, color = sample_name)) +
     theme_bw() +
@@ -586,7 +586,7 @@ Rules based on taxonomy assignment:
 #| warning: false
 
   # rarefaction curves
-  rar.fiona.1492 <- quickRareCurve(otu.sample.1492[11:nrow(otu.sample.1492),-1])
+  rar.fiona.1492 <- quickRareCurve(otu.sample.1492[grepl("FF", rownames(otu.sample.1492)),-1])
   
   ggplot(rar.fiona.1492, aes(x = subsample, y = value, group = sample_name, color = sample_name)) +
     theme_bw() +
@@ -598,7 +598,7 @@ Rules based on taxonomy assignment:
   
   
   
-  rar.fiona.1185 <- quickRareCurve(otu.sample.1185[11:nrow(otu.sample.1492),-1])
+  rar.fiona.1185 <- quickRareCurve(otu.sample.1185[grepl("FF", rownames(otu.sample.1492)),-1])
   
   ggplot(rar.fiona.1185, aes(x = subsample, y = value, group = sample_name, color = sample_name)) +
     theme_bw() +
@@ -960,7 +960,7 @@ Unfiltered data: all OTUs are kept. Including the plant, mitochondria and plasti
 #| warning: false
 
   # rarefaction curves
-  rar.loic.1492 <- quickRareCurve(otu.sample.1492[1:10,-1])
+  rar.loic.1492 <- quickRareCurve(otu.sample.1492[!grepl("FF", rownames(otu.sample.1492)),-1])
   
   ggplot(rar.loic.1492, aes(x = subsample, y = value, group = sample_name, color = sample_name)) +
     theme_bw() +
@@ -972,7 +972,7 @@ Unfiltered data: all OTUs are kept. Including the plant, mitochondria and plasti
   
   
   
-  rar.loic.1185 <- quickRareCurve(otu.sample.1185[1:10,-1])
+  rar.loic.1185 <- quickRareCurve(otu.sample.1185[!grepl("FF", rownames(otu.sample.1492)),-1])
   
   ggplot(rar.loic.1185, aes(x = subsample, y = value, group = sample_name, color = sample_name)) +
     theme_bw() +
