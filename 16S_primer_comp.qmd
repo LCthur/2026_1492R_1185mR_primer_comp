@@ -175,7 +175,7 @@ library(plotly)
 
 Unfiltered data: all OTUs are kept. Including the plant, mitochondria and plastids.
 
-#### 1.1.1 1492R
+  #### 1.1.1 1492R
 
 ```{r}
 #| echo: false
