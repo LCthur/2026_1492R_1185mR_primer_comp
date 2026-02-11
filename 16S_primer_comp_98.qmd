@@ -453,6 +453,23 @@ Let's have a look the primer pair is capturing one family or phylum that is then
     ) 
   
   plotly::ggplotly(relative_plot)
+  
+      
+  relative_plot <- rbind(percentages_1185.rel.fiona %>% mutate(primer = "1185"), percentages_1492.rel.fiona %>% mutate(primer = "1492")) %>% 
+    ggplot(.,
+       aes(x = interaction(primer, sample_Sample),
+           y = Abundance,
+           fill = Phylum)) +
+    geom_col() +
+  facet_wrap(~host) +
+  theme_bw() +
+  plot_theme +
+  theme(
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 90)
+  )
+  
+    plotly::ggplotly(relative_plot)
 ```
 Like this, it's hard to read and not very informative. But the 1185mR tax_table is dominated by one family (Aphagea_fa) which corresponds to a Eukaryote. Aside from this, the two tax tables are pretty similar. Although they are dominated by chloroplasts and mitochondria... 
 
@@ -641,6 +658,23 @@ The rarefaction curves show a higher diversity for the 1185mR primer pair.
     ) 
   
   plotly::ggplotly(relative_plot)
+  
+      
+  relative_plot <- rbind(percentages_1185.rel.fiona %>% mutate(primer = "1185"), percentages_1492.rel.fiona %>% mutate(primer = "1492")) %>% 
+    ggplot(.,
+       aes(x = interaction(primer, sample_Sample),
+           y = Abundance,
+           fill = Phylum)) +
+    geom_col() +
+  facet_wrap(~host) +
+  theme_bw() +
+  plot_theme +
+  theme(
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 90)
+  )
+  
+    plotly::ggplotly(relative_plot)
 ```
 
 ## 2. Loïc 
@@ -999,6 +1033,23 @@ Let's have a look the primer pair is capturing one family or phylum that is then
     ) 
   
   plotly::ggplotly(relative_plot)
+  
+    
+  relative_plot <- rbind(percentages_1185.rel.loic %>% mutate(primer = "1185"), percentages_1492.rel.loic %>% mutate(primer = "1492")) %>% 
+    ggplot(.,
+       aes(x = interaction(primer, sample_Sample),
+           y = Abundance,
+           fill = Phylum)) +
+    geom_col() +
+  facet_wrap(~host) +
+  theme_bw() +
+  plot_theme +
+  theme(
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 90)
+  )
+  
+    plotly::ggplotly(relative_plot)
 ```
 
 
@@ -1189,6 +1240,23 @@ The rarefaction curves show a higher absolute diversity for the 1185mR primer pa
     ) 
   
   plotly::ggplotly(relative_plot)
+  
+    
+  relative_plot <- rbind(percentages_1185.rel.loic %>% mutate(primer = "1185"), percentages_1492.rel.loic %>% mutate(primer = "1492")) %>% 
+    ggplot(.,
+       aes(x = interaction(primer, sample_Sample),
+           y = Abundance,
+           fill = Phylum)) +
+    geom_col() +
+  facet_wrap(~host) +
+  theme_bw() +
+  plot_theme +
+  theme(
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 90)
+  )
+  
+    plotly::ggplotly(relative_plot)
 ```
 
 
