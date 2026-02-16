@@ -36,6 +36,7 @@ library(tidyr)
 library(tibble)
 library(openxlsx)
 library(plotly)
+library(compositions)
 ```
 
 ```{r}
@@ -1259,6 +1260,181 @@ The rarefaction curves show a higher absolute diversity for the 1185mR primer pa
     plotly::ggplotly(relative_plot)
 ```
 
+
+## 3. Joined analysis
+### 3.1. PCoA (Aitchison's distance)
+This is not a Bray-Curtis PCoA applied after rarefaction but a compositional PCoA applied on 
+CLR-transformed otu abundance data. From this, the Euclidean distance is computed, resulting in the Aitchison's distance. 
+
+
+#### 3.1.1 Unfiltered data
+Still contains Eukaryota
+
+```{r joined modeling}
+#| label: Import for joined modeling
+#| warning: false
+#| echo: false
+
+# Re-import 
+    # DESIGN
+  design.1492 <- read.xlsx("../00_DATA/primer_list_fiona_loic.xlsx", sheet = 1) %>% 
+    filter(PrimerCombo == "27-1492") %>% 
+    select(c(Sample, PrimerComb, SampleOwner, extraction_method, host)) %>% 
+    tibble::column_to_rownames("PrimerComb")
+
+  # OTU table
+  otu.1492 <- read.table("../00_DATA/R1492_OUTPUT/bacteria/98/bacteria_COUNT98.tab")
+  rownames(otu.1492) = gsub("PB403rev1492.", "", rownames(otu.1492))
+  rownames(otu.1492) = gsub("_cutted_filt", "", rownames(otu.1492))
+  
+  otu.1492.clrx <- clr(otu.1492)
+  
+  otu.sample.1492 <- merge(design.1492 %>% dplyr::select(Sample), otu.1492, by = 0) %>% 
+    tibble::column_to_rownames("Sample") 
+  
+  master.1492.clrx <- merge(design.1492, otu.1492.clrx, by = 0) %>% tibble::column_to_rownames("Sample")
+  
+  # DESIGN
+  design.1185 <- read.xlsx("../00_DATA/primer_list_fiona_loic.xlsx", sheet = 1) %>% 
+    filter(PrimerCombo == "27-1492") %>% 
+    select(c(Sample, PrimerComb, SampleOwner, extraction_method, host)) %>% 
+    tibble::column_to_rownames("PrimerComb")
+
+  # OTU table
+  otu.1185 <- read.table("../00_DATA/R1185_OUTPUT/bacteria/98/bacteria_COUNT98.tab")
+  rownames(otu.1185) = gsub("PB403rev1185.", "", rownames(otu.1185))
+  rownames(otu.1185) = gsub("_cutted_filt", "", rownames(otu.1185))
+  
+  otu.sample.1185 <- merge(design.1185 %>% dplyr::select(Sample), otu.1185, by = 0) %>% 
+    tibble::column_to_rownames("Sample") 
+  
+  otu.1185_clrx <- clr(otu.1185)
+  
+  master.1185.clrx <- merge(design.1185, otu.1185_clrx, by = 0) %>% tibble::column_to_rownames("Sample")
+```
+
+
+```{r}
+#| label: PCoA vis
+#| warning: false
+#| echo: false
+  pcoa.1185 <- prcomp(master.1185.clrx[,6:ncol(master.1185.clrx)])
+  scores.1185 <- data.frame(scores(pcoa.1185)) 
+  
+  vis.pcoa.1185 <- merge(scores.1185, master.1185.clrx, by = 0)
+  
+  ggplot(vis.pcoa.1185, aes(x = PC1, y = PC2, color = extraction_method, label = Row.names)) + 
+    geom_point() +
+    stat_ellipse() +
+    theme_bw() +
+    plot_theme + facet_wrap(~host) +
+    xlab(paste0("PC2 (", round(summary(pcoa.1185)$importance[2,1],2) * 100,"%)")) +
+    ylab(paste0("PC2 (", round(summary(pcoa.1185)$importance[2,2],2) * 100,"%)")) + 
+    ggtitle("Unfiltered 1185mR")
+  
+  
+  pcoa.1492 <- prcomp(master.1492.clrx[,6:ncol(master.1492.clrx)])
+  scores.1492 <- data.frame(scores(pcoa.1492)) 
+  
+  vis.pcoa.1492 <- merge(scores.1492, master.1492.clrx, by = 0)
+  
+  ggplot(vis.pcoa.1492, aes(x = PC1, y = PC2, color = extraction_method, label = Row.names)) + 
+    geom_point() +
+    stat_ellipse() +
+    theme_bw() +
+    plot_theme + facet_wrap(~host) +
+    xlab(paste0("PC2 (", round(summary(pcoa.1185)$importance[2,1],2) * 100,"%)")) +
+    ylab(paste0("PC2 (", round(summary(pcoa.1185)$importance[2,2],2) * 100,"%)")) + 
+    ggtitle("Unfiltered 1485mR")
+    
+```
+
+PCOA on unfiltered together, clustering by primer. 
+```{r}
+#| label: PCoA vis by primer
+#| warning: false
+#| echo: false
+
+  # join the dataframe together
+  pcoa.primers <- bind_rows(master.1185.clrx %>% 
+                              tibble::rownames_to_column("Sample") %>% 
+                              mutate(primer = "27F_1185mR"), 
+                            master.1492.clrx %>% 
+                              tibble::rownames_to_column("Sample") %>% 
+                              mutate(primer = "27F_1492R"))
+  
+  pcoa.data <- pcoa.primers[,6:ncol(pcoa.primers)]
+  pcoa.data <- pcoa.data %>% dplyr::select(!c(primer))
+  pcoa.data[is.na(pcoa.data)] <- 0
+  
+  pcoa.both <- prcomp(na.omit(pcoa.data), scale = TRUE)
+  scores.both <- data.frame(scores(pcoa.both)) 
+  
+  
+  vis.pcoa.both <- merge(scores.both, pcoa.primers, by = 0)
+  
+  ggplot(vis.pcoa.both, aes(x = PC1, y = PC2, color = primer)) + 
+    geom_point() +
+    stat_ellipse() +
+    theme_bw() +
+    plot_theme + facet_wrap(~host) +
+    xlab(paste0("PC2 (", round(summary(pcoa.both)$importance[2,1],2) * 100,"%)")) +
+    ylab(paste0("PC2 (", round(summary(pcoa.both)$importance[2,2],2) * 100,"%)")) + 
+    ggtitle("Primer comparison, unfiltered")
+```
+
+#### 3.1.2 Filtered data
+```{r}
+#| label: filter data again and agin
+#| echo: false
+
+  otu.1492.bac <- otu.1492 %>% dplyr::select(all_of(rownames(tax.bac.1492)))
+  otu.1492.bac <- clr(otu.1492.bac)
+  otu.sample.1492 <- merge(design.1492 %>% dplyr::select(Sample), otu.1492.bac, by = 0) %>% 
+  tibble::column_to_rownames("Sample") %>% 
+    filter()
+  
+  master.1492 <- merge(design.1492, otu.1492.bac, by = 0)
+  
+  otu.1185.bac <- otu.1185 %>% dplyr::select(all_of(rownames(tax.bac.1185)))
+  otu.1185.bac <- clr(otu.1185.bac)
+  
+  otu.sample.1185 <- merge(design.1185 %>% dplyr::select(Sample), otu.1185.bac, by = 0) %>% 
+  tibble::column_to_rownames("Sample") %>% 
+    filter()
+  
+  master.1185 <- merge(design.1185, otu.1185.bac, by = 0) 
+```
+
+
+```{r}
+#| warning: false
+#| echo: false
+  # join the dataframe together
+  pcoa.primers <- bind_rows(master.1185 %>% 
+                              mutate(primer = "27F_1185mR"), 
+                            master.1492 %>% 
+                              mutate(primer = "27F_1492R"))
+  
+  pcoa.data <- pcoa.primers[,6:ncol(pcoa.primers)]
+  pcoa.data <- pcoa.data %>% dplyr::select(!c(primer))
+  pcoa.data[is.na(pcoa.data)] <- 0
+  
+  pcoa.both <- prcomp(na.omit(pcoa.data), scale = TRUE)
+  scores.both <- data.frame(scores(pcoa.both)) 
+  
+  
+  vis.pcoa.both <- merge(scores.both, pcoa.primers, by = 0)
+  
+  ggplot(vis.pcoa.both, aes(x = PC1, y = PC2, color = primer, group = Sample)) + 
+    geom_line() +
+    geom_point() +
+    theme_bw() +
+    plot_theme + facet_wrap(~host) +
+    xlab(paste0("PC2 (", round(summary(pcoa.both)$importance[2,1],2) * 100,"%)")) +
+    ylab(paste0("PC2 (", round(summary(pcoa.both)$importance[2,2],2) * 100,"%)")) + 
+    ggtitle("Primer comparison, unfiltered, 98%")
+```
 
 
 
