@@ -1428,13 +1428,13 @@ PCOA on unfiltered together, clustering by primer.
   vis.pcoa.both <- merge(scores.both, pcoa.primers, by = 0)
   
   ggplot(vis.pcoa.both, aes(x = PC1, y = PC2, color = primer, group = Sample)) + 
-    geom_line() +
+    geom_line(linetype = "dashed", color = "grey") +
     geom_point() +
     theme_bw() +
     plot_theme + facet_wrap(~host) +
     xlab(paste0("PC2 (", round(summary(pcoa.both)$importance[2,1],2) * 100,"%)")) +
     ylab(paste0("PC2 (", round(summary(pcoa.both)$importance[2,2],2) * 100,"%)")) + 
-    ggtitle("Primer comparison, unfiltered")
+    ggtitle("Primer comparison, filtered")
 ```
 
 
